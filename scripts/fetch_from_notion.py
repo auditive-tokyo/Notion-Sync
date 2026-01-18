@@ -246,56 +246,6 @@ def get_page_children(page_id: str) -> list:
     return children
 
 
-def get_page_comments(page_id: str) -> str:
-    """ページのコメントを取得してMarkdownに変換"""
-    try:
-        comments = []
-        cursor = None
-        
-        while True:
-            response = notion.comments.list(
-                block_id=page_id,
-                start_cursor=cursor
-            )
-            comments.extend(response.get("results", []))
-            
-            if not response.get("has_more"):
-                break
-            cursor = response.get("next_cursor")
-        
-        if not comments:
-            return ""
-        
-        # コメントをMarkdown形式に変換
-        comment_lines = ["## 💬 コメント\n"]
-        
-        for comment in comments:
-            # ユーザー情報
-            created_by = comment.get("created_by", {})
-            user_name = created_by.get("name") or created_by.get("id", "Unknown")
-            
-            # 日時
-            created_time = comment.get("created_time", "")[:10]
-            
-            # コメント本文
-            rich_text = comment.get("rich_text", [])
-            content = "".join([t.get("plain_text", "") for t in rich_text])
-            
-            # 複数行コメントの場合、各行を引用形式に
-            content_lines = content.split("\n")
-            formatted_content = "\n> ".join(content_lines)
-            
-            comment_lines.append(f"> **{user_name}** ({created_time}): {formatted_content}\n")
-        
-        comment_lines.append("\n---\n")
-        return "\n".join(comment_lines)
-    
-    except Exception as e:
-        # コメント取得に失敗しても処理を続行
-        print(f"    ⚠️ Could not fetch comments: {e}")
-        return ""
-
-
 def block_to_markdown(block: dict, output_dir: Path = None, parent_title: str = None) -> str:
     """ブロックをMarkdownに変換"""
     block_type = block.get("type")
@@ -357,8 +307,8 @@ def block_to_markdown(block: dict, output_dir: Path = None, parent_title: str = 
         title = block.get("child_page", {}).get("title", "Untitled")
         child_id = block.get("id", "").replace("-", "")
         if parent_title and child_id:
-            safe_parent = sanitize_filename(parent_title)
-            safe_title = sanitize_filename(title)
+            safe_parent = sanitize_filename(parent_title).replace(" ", "%20")
+            safe_title = sanitize_filename(title).replace(" ", "%20")
             # スペースを%20にエンコード
             link_path = f"{safe_parent}/{safe_title}%20{child_id}.md"
             return f"📄 [{title}]({link_path})\n"
@@ -368,8 +318,8 @@ def block_to_markdown(block: dict, output_dir: Path = None, parent_title: str = 
         title = block.get("child_database", {}).get("title", "Untitled")
         child_id = block.get("id", "").replace("-", "")
         if parent_title and child_id:
-            safe_parent = sanitize_filename(parent_title)
-            safe_title = sanitize_filename(title)
+            safe_parent = sanitize_filename(parent_title).replace(" ", "%20")
+            safe_title = sanitize_filename(title).replace(" ", "%20")
             # DBのCSVファイルへのリンク
             link_path = f"{safe_parent}/{safe_title}%20{child_id}.csv"
             return f"🗄️ [{title}]({link_path})\n"
@@ -511,15 +461,12 @@ def process_page(page_id: str, output_path: Path, depth: int = 0, include_proper
     # ページ内容を取得（output_pathとtitleを渡してリンク生成用に）
     content = fetch_page_content(page_id, output_path, title)
     
-    # コメントを取得
-    comments_md = get_page_comments(page_id)
-    
     # プロパティテーブルを追加（DBレコードの場合）
     properties_md = ""
     if include_properties:
         properties_md = get_page_properties_markdown(page)
     
-    markdown = f"# {title}\n\n{properties_md}{comments_md}{content}"
+    markdown = f"# {title}\n\n{properties_md}{content}"
     
     # ファイル保存
     filepath.parent.mkdir(parents=True, exist_ok=True)
