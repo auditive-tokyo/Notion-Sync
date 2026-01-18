@@ -1,0 +1,64 @@
+name: Sync from Notion
+
+on:
+  schedule:
+    - cron: "0 0 * * *" # 1日1回（UTC 0:00 = JST 9:00）
+  workflow_dispatch: # 手動実行も可能
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip uninstall -y notion 2>/dev/null || true
+          pip install "notion-client==1.0.0" requests
+          python -c "from notion_client import Client; c = Client(auth='test'); print('databases.query available:', hasattr(c.databases, 'query'))"
+
+      - name: Fetch from Notion
+        env:
+          NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
+          NOTION_ROOT_PAGE_ID: ${{ secrets.NOTION_ROOT_PAGE_ID }}
+        run: python scripts/fetch_from_notion.py
+
+      - name: Check for changes
+        id: changes
+        run: |
+          git add -A
+          if git diff --staged --quiet; then
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+            echo "No changes detected"
+          else
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+            echo "Changes detected:"
+            git diff --staged --name-only
+          fi
+
+      - name: Commit and push
+        if: steps.changes.outputs.has_changes == 'true'
+        run: |
+          git config user.name "notion-sync-bot"
+          git config user.email "notion-sync-bot@users.noreply.github.com"
+          git commit -m "Sync from Notion $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+          git push --force
+
+      - name: Summary
+        run: |
+          echo "## Sync from Notion" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.changes.outputs.has_changes }}" = "true" ]; then
+            echo "✅ Changes synced successfully" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "ℹ️ No changes detected" >> $GITHUB_STEP_SUMMARY
+          fi
