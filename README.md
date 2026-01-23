@@ -1,0 +1,126 @@
+# 📝 NotionSync
+
+> Automatically backup your Notion workspace to GitHub with daily scheduled syncs.
+
+[![Sync from Notion](https://github.com/auditive-tokyo/NotionSync/actions/workflows/sync-from-notion.yml/badge.svg)](https://github.com/auditive-tokyo/NotionSync/actions/workflows/sync-from-notion.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+## ✨ Features
+
+- 🔄 **Automatic Daily Sync** - GitHub Actions runs every day at 9:00 AM JST
+- 📄 **Markdown Export** - Converts Notion pages to clean Markdown files
+- 📊 **Database Support** - Exports Notion databases as CSV files
+- 🖼️ **Image Download** - Downloads and stores images locally
+- 📁 **Hierarchical Structure** - Preserves your Notion page hierarchy
+- 🚀 **Manual Trigger** - Run sync anytime with workflow_dispatch
+
+## 🚀 Quick Start
+
+### 1. Use this template
+
+Click the green **"Use this template"** button → **"Create a new repository"**
+
+> 💡 You can make it **private** to keep your Notion content secure!
+
+### 2. Get Notion API credentials
+
+1. Go to [Notion Integrations](https://www.notion.so/my-integrations)
+2. Click "New integration"
+3. Name it (e.g., "GitHub Sync")
+4. Copy the **Internal Integration Token**
+
+### 3. Share your Notion page with the integration
+
+1. Open your Notion page you want to sync
+2. Click "..." menu → "Connections" → Add your integration
+3. Copy the **Page ID** from the URL:
+   ```
+   https://www.notion.so/Your-Page-Title-{PAGE_ID}
+                                          ^^^^^^^^
+   ```
+
+### 4. Set up GitHub Secrets
+
+Go to your forked repository → Settings → Secrets and variables → Actions
+
+Add these secrets:
+
+| Secret Name | Value |
+|-------------|-------|
+| `NOTION_API_KEY` | Your Notion integration token |
+| `NOTION_ROOT_PAGE_ID` | The page ID you want to sync |
+
+### 5. Run the sync
+
+- **Manual**: Go to Actions → "Sync from Notion" → "Run workflow"
+- **Automatic**: Runs daily at 9:00 AM JST (0:00 UTC)
+
+## 📁 Output Structure
+
+```
+root_page/
+├── Your Page Title {page_id}.md
+└── Your Page Title/
+    ├── Child Page {page_id}.md
+    ├── Database {page_id}.csv
+    └── images/
+        └── downloaded_image.png
+```
+
+## ⚙️ Configuration
+
+### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `NOTION_API_KEY` | Required | Notion integration token |
+| `NOTION_ROOT_PAGE_ID` | Required | Root page ID to sync |
+| `DOWNLOAD_IMAGES` | `true` | Download images locally |
+
+### Customize Schedule
+
+Edit `.github/workflows/sync-from-notion.yml`:
+
+```yaml
+on:
+  schedule:
+    - cron: "0 0 * * *"  # Change this cron expression
+```
+
+## 🔧 Supported Notion Blocks
+
+- ✅ Paragraphs, Headings (H1, H2, H3)
+- ✅ Bulleted & Numbered lists
+- ✅ To-do lists with checkboxes
+- ✅ Code blocks with syntax highlighting
+- ✅ Quotes & Callouts
+- ✅ Tables
+- ✅ Images (with local download)
+- ✅ Bookmarks & Links
+- ✅ Dividers
+- ✅ Toggle blocks
+- ✅ Child pages (recursive)
+- ✅ Databases (as CSV)
+
+## 🤝 Contributing
+
+Contributions are welcome! Feel free to:
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- [Notion API](https://developers.notion.com/)
+- [notion-client](https://github.com/ramnes/notion-sdk-py) - Python SDK for Notion API
+
+---
+
+⭐ If you find this useful, please give it a star!
