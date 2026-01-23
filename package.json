@@ -1,0 +1,21 @@
+{
+    "name": "notion-sync",
+    "version": "1.0.0",
+    "description": "Automatically backup your Notion workspace to GitHub",
+    "type": "module",
+    "scripts": {
+        "sync": "tsx src/index.ts",
+        "typecheck": "tsc --noEmit"
+    },
+    "dependencies": {
+        "@notionhq/client": "^2.2.15"
+    },
+    "devDependencies": {
+        "@types/node": "^20.11.0",
+        "tsx": "^4.7.0",
+        "typescript": "^5.3.3"
+    },
+    "engines": {
+        "node": ">=20.0.0"
+    }
+}
