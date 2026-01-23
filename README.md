@@ -2,12 +2,16 @@
 
 > Automatically backup your Notion workspace to GitHub with daily scheduled syncs.
 
-[![Sync from Notion](https://github.com/auditive-tokyo/NotionSync/actions/workflows/sync-from-notion.yml/badge.svg)](https://github.com/auditive-tokyo/NotionSync/actions/workflows/sync-from-notion.yml)
+**Why?** Developers often store requirements, architecture docs, and specs in Notion. This tool syncs them to your repo so you can view everything in VS Code — no more switching back and forth!
+
+📍 **Current:** One-way sync (Notion → GitHub)  
+🚀 **Future:** PRs for two-way sync (GitHub → Notion) are welcome!
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## ✨ Features
 
-- 🔄 **Automatic Daily Sync** - GitHub Actions runs every day at 9:00 AM JST
+- 🔄 **Automatic Daily Sync** - GitHub Actions runs daily at 0:00 UTC
 - 📄 **Markdown Export** - Converts Notion pages to clean Markdown files
 - 📊 **Database Support** - Exports Notion databases as CSV files
 - 🖼️ **Image Download** - Downloads and stores images locally
@@ -45,15 +49,15 @@ Go to your forked repository → Settings → Secrets and variables → Actions
 
 Add these secrets:
 
-| Secret Name | Value |
-|-------------|-------|
-| `NOTION_API_KEY` | Your Notion integration token |
-| `NOTION_ROOT_PAGE_ID` | The page ID you want to sync |
+| Secret Name           | Value                         |
+| --------------------- | ----------------------------- |
+| `NOTION_API_KEY`      | Your Notion integration token |
+| `NOTION_ROOT_PAGE_ID` | The page ID you want to sync  |
 
 ### 5. Run the sync
 
 - **Manual**: Go to Actions → "Sync from Notion" → "Run workflow"
-- **Automatic**: Runs daily at 9:00 AM JST (0:00 UTC)
+- **Automatic**: Runs daily at 0:00 UTC
 
 ## 📁 Output Structure
 
@@ -71,11 +75,11 @@ root_page/
 
 ### Environment Variables
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `NOTION_API_KEY` | Required | Notion integration token |
-| `NOTION_ROOT_PAGE_ID` | Required | Root page ID to sync |
-| `DOWNLOAD_IMAGES` | `true` | Download images locally |
+| Variable              | Default  | Description              |
+| --------------------- | -------- | ------------------------ |
+| `NOTION_API_KEY`      | Required | Notion integration token |
+| `NOTION_ROOT_PAGE_ID` | Required | Root page ID to sync     |
+| `DOWNLOAD_IMAGES`     | `true`   | Download images locally  |
 
 ### Customize Schedule
 
@@ -84,7 +88,7 @@ Edit `.github/workflows/sync-from-notion.yml`:
 ```yaml
 on:
   schedule:
-    - cron: "0 0 * * *"  # Change this cron expression
+    - cron: "0 0 * * *" # Change this cron expression
 ```
 
 ## 🔧 Supported Notion Blocks
