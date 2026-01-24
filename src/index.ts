@@ -228,7 +228,7 @@ async function downloadImage(url: string, outputDir: string): Promise<string> {
 }
 
 /**
- * ページのプロパティをMarkdownテーブルとして取得（横並び形式）
+ * ページのプロパティをMarkdown形式で取得（縦並び形式）
  */
 function getPagePropertiesMarkdown(page: PageObjectResponse): string {
   const props = page.properties;
@@ -247,10 +247,7 @@ function getPagePropertiesMarkdown(page: PageObjectResponse): string {
 
     const value = extractPropertyValue(prop);
     if (value) {
-      // テーブル内のパイプをエスケープ
-      const escapedName = name.replace(/\|/g, "\\|");
-      const escapedValue = value.replace(/\|/g, "\\|");
-      propItems.push([escapedName, escapedValue]);
+      propItems.push([name, value]);
     }
   }
 
@@ -261,15 +258,10 @@ function getPagePropertiesMarkdown(page: PageObjectResponse): string {
   // プロパティ名でソート
   propItems.sort((a, b) => a[0].localeCompare(b[0]));
 
-  // 横並びMarkdownテーブル形式
-  const headers = propItems.map((item) => item[0]);
-  const values = propItems.map((item) => item[1]);
+  // 縦並び形式（プロパティ名: 値）
+  const lines = propItems.map(([name, value]) => `**${name}**: ${value}`);
 
-  const headerRow = "| " + headers.join(" | ") + " |";
-  const separator = "| " + headers.map(() => "---").join(" | ") + " |";
-  const valueRow = "| " + values.join(" | ") + " |";
-
-  return `${headerRow}\n${separator}\n${valueRow}\n\n---\n`;
+  return lines.join("\n") + "\n\n---\n";
 }
 
 /**
@@ -706,13 +698,20 @@ async function processDatabase(
   const indent = "  ".repeat(depth);
   console.log(`${indent}🗄️ ${title}`);
 
-  // データベースのレコードを取得
+  // データソースIDを取得（v5 API: DatabaseにはData Sourcesが紐づく）
+  const dataSourceId = db.data_sources?.[0]?.id;
+  if (!dataSourceId) {
+    console.error(`  No data source found for database ${databaseId}`);
+    return;
+  }
+
+  // データベースのレコードを取得（v5: dataSources.queryを使用）
   const records: PageObjectResponse[] = [];
   let cursor: string | undefined;
 
   while (true) {
-    const response = await notion.databases.query({
-      database_id: databaseId,
+    const response = await notion.dataSources.query({
+      data_source_id: dataSourceId,
       start_cursor: cursor,
     });
 
