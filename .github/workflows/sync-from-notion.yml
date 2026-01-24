@@ -15,23 +15,19 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          python-version: "3.13"
+          node-version: "20"
 
       - name: Install dependencies
-        run: |
-          pip install --upgrade pip
-          pip uninstall -y notion 2>/dev/null || true
-          pip install "notion-client==1.0.0" requests
-          python -c "from notion_client import Client; c = Client(auth='test'); print('databases.query available:', hasattr(c.databases, 'query'))"
+        run: npm install
 
       - name: Fetch from Notion
         env:
           NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
           NOTION_ROOT_PAGE_ID: ${{ secrets.NOTION_ROOT_PAGE_ID }}
-        run: python scripts/fetch_from_notion.py
+        run: npm run sync
 
       - name: Check for changes
         id: changes
