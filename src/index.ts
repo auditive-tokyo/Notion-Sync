@@ -46,114 +46,95 @@ function getPageTitle(page: PageObjectResponse): string {
 }
 
 /**
+ * ユーザー情報から名前を取得
+ */
+function getUserDisplayName(user: { id: string; name?: string | null; person?: { email?: string } }): string {
+  if ("name" in user && user.name) {
+    return user.name;
+  }
+  if ("person" in user && user.person?.email) {
+    return user.person.email;
+  }
+  return user.id;
+}
+
+/**
+ * Formula型プロパティの値を抽出
+ */
+function extractFormulaValue(formula: { type: string; string?: string | null; number?: number | null; boolean?: boolean | null; date?: { start: string } | null }): string {
+  switch (formula.type) {
+    case "string":
+      return formula.string ?? "";
+    case "number":
+      return formula.number !== null ? String(formula.number) : "";
+    case "boolean":
+      return formula.boolean ? "✅" : "☐";
+    case "date":
+      return formula.date?.start ?? "";
+    default:
+      return "";
+  }
+}
+
+/**
+ * Rollup型プロパティの値を抽出
+ */
+function extractRollupValue(rollup: { type: string; number?: number | null; array?: unknown[] }): string {
+  switch (rollup.type) {
+    case "number":
+      return rollup.number !== null ? String(rollup.number) : "";
+    case "array":
+      return `(${rollup.array?.length ?? 0} items)`;
+    default:
+      return "";
+  }
+}
+
+/**
  * プロパティの値を文字列として抽出
  */
 function extractPropertyValue(prop: PropertyValueType): string {
   switch (prop.type) {
     case "title":
       return prop.title.map((t) => t.plain_text).join("");
-
     case "rich_text":
       return prop.rich_text.map((t) => t.plain_text).join("");
-
     case "number":
       return prop.number !== null ? String(prop.number) : "";
-
     case "select":
       return prop.select?.name ?? "";
-
     case "multi_select":
       return prop.multi_select.map((o) => o.name).join(", ");
-
     case "status":
       return prop.status?.name ?? "";
-
-    case "date": {
-      const date = prop.date;
-      if (!date) return "";
-      if (date.end) {
-        return `${date.start} → ${date.end}`;
-      }
-      return date.start;
-    }
-
+    case "date":
+      return prop.date ? (prop.date.end ? `${prop.date.start} → ${prop.date.end}` : prop.date.start) : "";
     case "people":
-      return prop.people
-        .map((p) => {
-          // 完全なUserObjectResponseかどうかをチェック
-          if ("name" in p && p.name) {
-            return p.name;
-          }
-          if ("person" in p && p.person?.email) {
-            return p.person.email;
-          }
-          return p.id;
-        })
-        .filter(Boolean)
-        .join(", ");
-
+      return prop.people.map(getUserDisplayName).filter(Boolean).join(", ");
     case "checkbox":
       return prop.checkbox ? "✅" : "☐";
-
     case "url":
       return prop.url ?? "";
-
     case "email":
       return prop.email ?? "";
-
     case "phone_number":
       return prop.phone_number ?? "";
-
-    case "formula": {
-      const formula = prop.formula;
-      switch (formula.type) {
-        case "string":
-          return formula.string ?? "";
-        case "number":
-          return formula.number !== null ? String(formula.number) : "";
-        case "boolean":
-          return formula.boolean ? "✅" : "☐";
-        case "date":
-          return formula.date?.start ?? "";
-        default:
-          return "";
-      }
-    }
-
+    case "formula":
+      return extractFormulaValue(prop.formula);
     case "relation":
       return `(${prop.relation.length} items)`;
-
-    case "rollup": {
-      const rollup = prop.rollup;
-      switch (rollup.type) {
-        case "number":
-          return rollup.number !== null ? String(rollup.number) : "";
-        case "array":
-          return `(${rollup.array.length} items)`;
-        default:
-          return "";
-      }
-    }
-
+    case "rollup":
+      return extractRollupValue(prop.rollup);
     case "created_time":
-      return prop.created_time.slice(0, 10); // 日付部分のみ
-
-    case "created_by": {
-      const user = prop.created_by;
-      return "name" in user && user.name ? user.name : user.id;
-    }
-
+      return prop.created_time.slice(0, 10);
+    case "created_by":
+      return getUserDisplayName(prop.created_by);
     case "last_edited_time":
-      return prop.last_edited_time.slice(0, 10); // 日付部分のみ
-
-    case "last_edited_by": {
-      const user = prop.last_edited_by;
-      return "name" in user && user.name ? user.name : user.id;
-    }
-
+      return prop.last_edited_time.slice(0, 10);
+    case "last_edited_by":
+      return getUserDisplayName(prop.last_edited_by);
     case "files":
       return `(${prop.files.length} files)`;
-
     default:
       return `[${(prop as { type: string }).type}]`;
   }
@@ -390,6 +371,49 @@ async function convertTableBlock(block: BlockObjectResponse): Promise<string> {
 }
 
 /**
+ * 子ページ/子データベースのリンクを生成
+ */
+function formatChildLink(
+  title: string,
+  blockId: string,
+  parentTitle: string | undefined,
+  icon: string,
+  extension: string
+): string {
+  const childId = blockId.replace(/-/g, "");
+  if (parentTitle && childId) {
+    const safeParent = sanitizeFilename(parentTitle).replace(/ /g, "%20");
+    const safeTitle = sanitizeFilename(title).replace(/ /g, "%20");
+    const linkPath = `${safeParent}/${safeTitle}%20${childId}.${extension}`;
+    return `${icon} [${title}](${linkPath})\n`;
+  }
+  return `${icon} [${title}]\n`;
+}
+
+/**
+ * 画像ブロックを処理
+ */
+async function processImageBlock(
+  block: BlockObjectResponse & { type: "image" },
+  outputDir?: string
+): Promise<string> {
+  const imageData = block.image;
+  let imageUrl: string;
+
+  if (imageData.type === "external") {
+    imageUrl = imageData.external.url;
+  } else {
+    imageUrl = imageData.file.url;
+    if (DOWNLOAD_IMAGES && outputDir && imageUrl) {
+      imageUrl = await downloadImage(imageUrl, outputDir);
+    }
+  }
+
+  const caption = richTextToMarkdown(imageData.caption);
+  return `![${caption}](${imageUrl})\n`;
+}
+
+/**
  * ブロックをMarkdownに変換
  */
 async function blockToMarkdown(
@@ -407,112 +431,56 @@ async function blockToMarkdown(
     return data?.rich_text ?? [];
   };
 
-  if (blockType === "paragraph") {
-    return richTextToMarkdown(getRichText("paragraph")) + "\n";
-  }
+  // シンプルなテキストブロックのマッピング
+  const simpleTextBlocks: Record<string, string> = {
+    paragraph: "",
+    heading_1: "# ",
+    heading_2: "## ",
+    heading_3: "### ",
+    bulleted_list_item: "- ",
+    numbered_list_item: "1. ",
+    quote: "> ",
+    toggle: "<details><summary>",
+  };
 
-  if (blockType === "heading_1") {
-    return `# ${richTextToMarkdown(getRichText("heading_1"))}\n`;
-  }
-
-  if (blockType === "heading_2") {
-    return `## ${richTextToMarkdown(getRichText("heading_2"))}\n`;
-  }
-
-  if (blockType === "heading_3") {
-    return `### ${richTextToMarkdown(getRichText("heading_3"))}\n`;
-  }
-
-  if (blockType === "bulleted_list_item") {
-    return `- ${richTextToMarkdown(getRichText("bulleted_list_item"))}\n`;
-  }
-
-  if (blockType === "numbered_list_item") {
-    return `1. ${richTextToMarkdown(getRichText("numbered_list_item"))}\n`;
-  }
-
-  if (blockType === "to_do") {
-    const todoData = block.to_do;
-    const checkbox = todoData.checked ? "[x]" : "[ ]";
-    return `- ${checkbox} ${richTextToMarkdown(todoData.rich_text)}\n`;
-  }
-
-  if (blockType === "toggle") {
-    return `<details><summary>${richTextToMarkdown(getRichText("toggle"))}</summary>\n</details>\n`;
-  }
-
-  if (blockType === "code") {
-    const codeData = block.code;
-    const language = codeData.language || "";
-    const code = richTextToMarkdown(codeData.rich_text);
-    return `\`\`\`${language}\n${code}\n\`\`\`\n`;
-  }
-
-  if (blockType === "quote") {
-    return `> ${richTextToMarkdown(getRichText("quote"))}\n`;
-  }
-
-  if (blockType === "divider") {
-    return "---\n";
-  }
-
-  if (blockType === "callout") {
-    const calloutData = block.callout;
-    const icon = calloutData.icon;
-    const emoji = icon?.type === "emoji" ? icon.emoji : "💡";
-    return `> ${emoji} ${richTextToMarkdown(calloutData.rich_text)}\n`;
-  }
-
-  if (blockType === "child_page") {
-    const title = block.child_page.title || "Untitled";
-    const childId = block.id.replace(/-/g, "");
-    if (parentTitle && childId) {
-      const safeParent = sanitizeFilename(parentTitle).replace(/ /g, "%20");
-      const safeTitle = sanitizeFilename(title).replace(/ /g, "%20");
-      const linkPath = `${safeParent}/${safeTitle}%20${childId}.md`;
-      return `📄 [${title}](${linkPath})\n`;
+  if (blockType in simpleTextBlocks) {
+    const prefix = simpleTextBlocks[blockType];
+    const text = richTextToMarkdown(getRichText(blockType));
+    if (blockType === "toggle") {
+      return `${prefix}${text}</summary>\n</details>\n`;
     }
-    return `📄 [${title}]\n`;
+    return `${prefix}${text}\n`;
   }
 
-  if (blockType === "child_database") {
-    const title = block.child_database.title || "Untitled";
-    const childId = block.id.replace(/-/g, "");
-    if (parentTitle && childId) {
-      const safeParent = sanitizeFilename(parentTitle).replace(/ /g, "%20");
-      const safeTitle = sanitizeFilename(title).replace(/ /g, "%20");
-      const linkPath = `${safeParent}/${safeTitle}%20${childId}.csv`;
-      return `🗄️ [${title}](${linkPath})\n`;
+  switch (blockType) {
+    case "to_do": {
+      const checkbox = block.to_do.checked ? "[x]" : "[ ]";
+      return `- ${checkbox} ${richTextToMarkdown(block.to_do.rich_text)}\n`;
     }
-    return `🗄️ [${title}]\n`;
-  }
-
-  if (blockType === "image") {
-    const imageData = block.image;
-    let imageUrl: string;
-    if (imageData.type === "external") {
-      imageUrl = imageData.external.url;
-    } else {
-      imageUrl = imageData.file.url;
-      // Notion内部画像はダウンロード（有効時）
-      if (DOWNLOAD_IMAGES && outputDir && imageUrl) {
-        imageUrl = await downloadImage(imageUrl, outputDir);
-      }
+    case "code": {
+      const language = block.code.language || "";
+      return `\`\`\`${language}\n${richTextToMarkdown(block.code.rich_text)}\n\`\`\`\n`;
     }
-    const caption = richTextToMarkdown(imageData.caption);
-    return `![${caption}](${imageUrl})\n`;
+    case "divider":
+      return "---\n";
+    case "callout": {
+      const icon = block.callout.icon;
+      const emoji = icon?.type === "emoji" ? icon.emoji : "💡";
+      return `> ${emoji} ${richTextToMarkdown(block.callout.rich_text)}\n`;
+    }
+    case "child_page":
+      return formatChildLink(block.child_page.title || "Untitled", block.id, parentTitle, "📄", "md");
+    case "child_database":
+      return formatChildLink(block.child_database.title || "Untitled", block.id, parentTitle, "🗄️", "csv");
+    case "image":
+      return processImageBlock(block as BlockObjectResponse & { type: "image" }, outputDir);
+    case "bookmark":
+      return `🔗 ${block.bookmark.url || ""}\n`;
+    case "table":
+      return convertTableBlock(block);
+    default:
+      return `[${blockType}]\n`;
   }
-
-  if (blockType === "bookmark") {
-    const url = block.bookmark.url || "";
-    return `🔗 ${url}\n`;
-  }
-
-  if (blockType === "table") {
-    return await convertTableBlock(block);
-  }
-
-  return `[${blockType}]\n`;
 }
 
 /**
