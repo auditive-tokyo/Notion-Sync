@@ -123,7 +123,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 🙏 Acknowledgments
 
 - [Notion API](https://developers.notion.com/)
-- [notion-client](https://github.com/ramnes/notion-sdk-py) - Python SDK for Notion API
+- [@notionhq/client](https://github.com/makenotion/notion-sdk-js) - Official Notion SDK for JavaScript
 
 ---
 
