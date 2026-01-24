@@ -8,8 +8,8 @@ import type {
   PageObjectResponse,
   RichTextItemResponse,
 } from "@notionhq/client/build/src/api-endpoints";
-import * as fs from "fs/promises";
-import * as path from "path";
+import * as fs from "node:fs/promises";
+import * as path from "node:path";
 
 // プロパティの型定義
 type PropertyValueType = PageObjectResponse["properties"][string];
@@ -107,8 +107,10 @@ function extractPropertyValue(prop: PropertyValueType): string {
       return prop.multi_select.map((o) => o.name).join(", ");
     case "status":
       return prop.status?.name ?? "";
-    case "date":
-      return prop.date ? (prop.date.end ? `${prop.date.start} → ${prop.date.end}` : prop.date.start) : "";
+    case "date": {
+      if (!prop.date) return "";
+      return prop.date.end ? `${prop.date.start} → ${prop.date.end}` : prop.date.start;
+    }
     case "people":
       return prop.people.map(getUserDisplayName).filter(Boolean).join(", ");
     case "checkbox":
@@ -144,9 +146,9 @@ function extractPropertyValue(prop: PropertyValueType): string {
  * 画像をダウンロードしてローカルパスを返す
  */
 async function downloadImage(url: string, outputDir: string): Promise<string> {
-  const fs = await import("fs/promises");
-  const path = await import("path");
-  const crypto = await import("crypto");
+  const fs = await import("node:fs/promises");
+  const path = await import("node:path");
+  const crypto = await import("node:crypto");
 
   try {
     // URLから画像情報を抽出
@@ -731,4 +733,4 @@ async function main() {
   console.log("Done!");
 }
 
-main().catch(console.error);
+await main();
