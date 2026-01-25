@@ -2,7 +2,7 @@
  * Notion Sync ユニットテスト
  */
 import { describe, it, expect } from "vitest";
-import { richTextToMarkdown } from "../utils.js";
+import { richTextToMarkdown, getUserDisplayName } from "../utils.js";
 import type { RichTextItemResponse } from "@notionhq/client/build/src/api-endpoints";
 
 /**
@@ -157,6 +157,38 @@ describe("richTextToMarkdown", () => {
       ];
       expect(richTextToMarkdown(input)).toBe("[Link1](https://a.com) and [Link2](https://b.com)");
     });
+  });
+});
+
+describe("getUserDisplayName", () => {
+  it("should return name when name exists", () => {
+    const user = { id: "user-123", name: "John Doe" };
+    expect(getUserDisplayName(user)).toBe("John Doe");
+  });
+
+  it("should return email when name is null but person.email exists", () => {
+    const user = { id: "user-123", name: null, person: { email: "john@example.com" } };
+    expect(getUserDisplayName(user)).toBe("john@example.com");
+  });
+
+  it("should return email when name is undefined but person.email exists", () => {
+    const user = { id: "user-123", person: { email: "john@example.com" } };
+    expect(getUserDisplayName(user)).toBe("john@example.com");
+  });
+
+  it("should return id when name is empty string", () => {
+    const user = { id: "user-123", name: "" };
+    expect(getUserDisplayName(user)).toBe("user-123");
+  });
+
+  it("should return id when neither name nor email exists", () => {
+    const user = { id: "user-123" };
+    expect(getUserDisplayName(user)).toBe("user-123");
+  });
+
+  it("should return id when person exists but email is undefined", () => {
+    const user = { id: "user-123", person: {} };
+    expect(getUserDisplayName(user)).toBe("user-123");
   });
 });
 
