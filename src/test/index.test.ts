@@ -2,7 +2,7 @@
  * Notion Sync ユニットテスト
  */
 import { describe, it, expect } from "vitest";
-import { richTextToMarkdown, getUserDisplayName } from "../utils.js";
+import { richTextToMarkdown, getUserDisplayName, extractFormulaValue } from "../utils.js";
 import type { RichTextItemResponse } from "@notionhq/client/build/src/api-endpoints";
 
 /**
@@ -189,6 +189,57 @@ describe("getUserDisplayName", () => {
   it("should return id when person exists but email is undefined", () => {
     const user = { id: "user-123", person: {} };
     expect(getUserDisplayName(user)).toBe("user-123");
+  });
+});
+
+describe("extractFormulaValue", () => {
+  // string type
+  it("should return string value when type is string", () => {
+    expect(extractFormulaValue({ type: "string", string: "hello" })).toBe("hello");
+  });
+
+  it("should return empty string when string is null", () => {
+    expect(extractFormulaValue({ type: "string", string: null })).toBe("");
+  });
+
+  it("should return empty string when string is undefined", () => {
+    expect(extractFormulaValue({ type: "string" })).toBe("");
+  });
+
+  // number type
+  it("should return number as string when type is number", () => {
+    expect(extractFormulaValue({ type: "number", number: 42 })).toBe("42");
+  });
+
+  it("should return '0' when number is 0", () => {
+    expect(extractFormulaValue({ type: "number", number: 0 })).toBe("0");
+  });
+
+  it("should return empty string when number is null", () => {
+    expect(extractFormulaValue({ type: "number", number: null })).toBe("");
+  });
+
+  // boolean type
+  it("should return ✅ when boolean is true", () => {
+    expect(extractFormulaValue({ type: "boolean", boolean: true })).toBe("✅");
+  });
+
+  it("should return ☐ when boolean is false", () => {
+    expect(extractFormulaValue({ type: "boolean", boolean: false })).toBe("☐");
+  });
+
+  // date type
+  it("should return date start when type is date", () => {
+    expect(extractFormulaValue({ type: "date", date: { start: "2024-01-15" } })).toBe("2024-01-15");
+  });
+
+  it("should return empty string when date is null", () => {
+    expect(extractFormulaValue({ type: "date", date: null })).toBe("");
+  });
+
+  // default case
+  it("should return empty string for unknown type", () => {
+    expect(extractFormulaValue({ type: "unknown" })).toBe("");
   });
 });
 
