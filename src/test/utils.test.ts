@@ -684,10 +684,3 @@ describe("getPageTitle", () => {
     expect(getPageTitle(page)).toBe("Untitled");
   });
 });
-
-describe("blockToMarkdown", () => {
-  it.todo("should convert paragraph block");
-  it.todo("should convert heading blocks");
-  it.todo("should convert list items");
-  it.todo("should convert code block");
-});
