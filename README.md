@@ -29,6 +29,14 @@
 - 📁 **Hierarchical Structure** - Preserves your Notion page hierarchy
 - 🚀 **Manual Trigger** - Run sync anytime with workflow_dispatch
 
+## 🎯 Demo
+
+See the actual Notion page being synced and its output:
+
+| Source | Output |
+|--------|--------|
+| [📘 Demo Notion Page](https://slime-form-23b.notion.site/Notion-Sync-Demo-2ecb9a687adc801dad71fa43a6416020) | [📁 Synced Files](root_page/) |
+
 ## 🚀 Quick Start
 
 ### 1. Use this template
