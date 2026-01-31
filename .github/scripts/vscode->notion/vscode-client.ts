@@ -145,26 +145,36 @@ function createBlocksFromMarkdown(text: string): BlockObjectRequest[] {
 // ============================================================
 
 /**
- * 既存ブロックを削除（child_page/child_database は保持）
+ * 既存の全ブロックを取得
  */
-async function deleteExistingBlocks(pageId: string): Promise<void> {
+async function getAllBlocks(pageId: string): Promise<
+  Array<{
+    id: string;
+    type: string;
+    isChild: boolean;
+  }>
+> {
   try {
     const response = await notion.blocks.children.list({
       block_id: pageId,
     });
 
+    const blocks: Array<{ id: string; type: string; isChild: boolean }> = [];
+
     for (const block of response.results) {
       if ("id" in block && "type" in block) {
-        // child_page と child_database は保持する
-        if (PRESERVE_BLOCK_TYPES.has(block.type)) {
-          continue;
-        }
-        await notion.blocks.delete({ block_id: block.id });
+        blocks.push({
+          id: block.id,
+          type: block.type,
+          isChild: PRESERVE_BLOCK_TYPES.has(block.type),
+        });
       }
     }
+
+    return blocks;
   } catch (error) {
-    console.error(`Failed to delete blocks for ${pageId}:`, error);
-    // 削除失敗は非致命的なので続行
+    console.error(`Failed to get blocks for ${pageId}:`, error);
+    return [];
   }
 }
 
@@ -200,13 +210,26 @@ async function appendBlocksWithRetry(
 }
 
 /**
- * ページの内容を更新
+ * ページの内容を更新（テキストブロックのみ削除して再作成）
  */
 async function updatePageContent(
   pageId: string,
   blocks: BlockObjectRequest[],
 ): Promise<void> {
-  await deleteExistingBlocks(pageId);
+  // 既存ブロックを取得
+  const existingBlocks = await getAllBlocks(pageId);
+
+  // テキストブロックのみ削除（child_page/child_databaseは保持）
+  const textBlocks = existingBlocks.filter((b) => !b.isChild);
+  for (const block of textBlocks) {
+    try {
+      await notion.blocks.delete({ block_id: block.id });
+    } catch {
+      // 削除失敗は無視
+    }
+  }
+
+  // 新しいブロックを追加
   await appendBlocksWithRetry(pageId, blocks);
 }
 
