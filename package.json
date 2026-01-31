@@ -1,10 +1,11 @@
 {
-    "name": "notion-sync",
+    "name": "notion-vscode",
     "version": "1.0.0",
-    "description": "Automatically backup your Notion workspace to GitHub",
+    "description": "Bi-directional sync between Notion and VS Code",
     "type": "module",
     "scripts": {
-        "sync": "tsx '.github/scripts/notion->github/index.ts'",
+        "pull": "tsx '.github/scripts/notion->vscode/index.ts'",
+        "push": "tsx '.github/scripts/github->notion/index.ts'",
         "typecheck": "tsc --noEmit --project .github/tsconfig.json",
         "lint": "eslint .github/scripts --config .github/eslint.config.js",
         "test": "vitest --config .github/vitest.config.ts",
