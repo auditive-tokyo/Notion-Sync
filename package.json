@@ -4,12 +4,12 @@
     "description": "Automatically backup your Notion workspace to GitHub",
     "type": "module",
     "scripts": {
-        "sync": "tsx src/index.ts",
-        "typecheck": "tsc --noEmit",
-        "lint": "eslint src/",
-        "test": "vitest",
-        "test:run": "vitest run",
-        "test:coverage": "vitest run --coverage"
+        "sync": "tsx '.github/scripts/notion->github/index.ts'",
+        "typecheck": "tsc --noEmit --project .github/tsconfig.json",
+        "lint": "eslint .github/scripts --config .github/eslint.config.js",
+        "test": "vitest --config .github/vitest.config.ts",
+        "test:run": "vitest run --config .github/vitest.config.ts",
+        "test:coverage": "vitest run --config .github/vitest.config.ts --coverage"
     },
     "dependencies": {
         "@notionhq/client": "^5.8.0",
