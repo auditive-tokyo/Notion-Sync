@@ -2,6 +2,7 @@
  * Notion APIからページを取得してMarkdownに変換するスクリプト
  * エントリーポイント
  */
+import "dotenv/config";
 import * as fs from "node:fs/promises";
 import { processPage } from "./notion-client.js";
 
