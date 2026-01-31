@@ -455,6 +455,20 @@ export async function processPage(
   const title = getPageTitle(page);
   const pageIdShort = pageId.replace(/-/g, "");
 
+  // 同じIDを持つ古いファイルを削除（タイトル変更に対応）
+  try {
+    const files = await fs.readdir(outputPath);
+    for (const file of files) {
+      if (file.endsWith(` ${pageIdShort}.md`) && file !== `${sanitizeFilename(title)} ${pageIdShort}.md`) {
+        const oldFilePath = path.join(outputPath, file);
+        await fs.unlink(oldFilePath);
+        console.log(`  🗑️  Removed old file: ${file}`);
+      }
+    }
+  } catch {
+    // ディレクトリが存在しない場合などはスキップ
+  }
+
   // ファイル名: タイトル + page_id
   const filename = `${sanitizeFilename(title)} ${pageIdShort}.md`;
   const filepath = path.join(outputPath, filename);
@@ -562,6 +576,57 @@ export async function processDatabase(
   // フォルダ作成
   const dbDir = path.join(outputPath, sanitizeFilename(title));
   await fs.mkdir(dbDir, { recursive: true });
+
+  // 同じDBの古いディレクトリ・CSVを削除（タイトル変更に対応）
+  // レコードIDを使って、このDBに属するディレクトリを特定する
+  const recordIds = new Set(records.map(r => r.id.replace(/-/g, "")));
+  
+  try {
+    const entries = await fs.readdir(outputPath, { withFileTypes: true });
+    
+    for (const entry of entries) {
+      // ディレクトリのみ対象（現在のタイトルと同じなら新しいのでスキップ）
+      if (!entry.isDirectory() || entry.name === sanitizeFilename(title)) {
+        continue;
+      }
+      
+      const dirPath = path.join(outputPath, entry.name);
+      
+      // ディレクトリ内のファイルを確認
+      try {
+        const dirFiles = await fs.readdir(dirPath);
+        
+        // このディレクトリ内のmdファイルが現在のDBレコードIDを持つか確認
+        const belongsToThisDb = dirFiles.some(file => {
+          if (!file.endsWith(".md")) return false;
+          // ファイル名からIDを抽出（末尾32文字）
+          const match = file.match(/([a-f0-9]{32})\.md$/);
+          return match && recordIds.has(match[1]);
+        });
+        
+        if (belongsToThisDb) {
+          // このDBに属する古いディレクトリなので削除
+          await fs.rm(dirPath, { recursive: true });
+          console.log(`  🗑️  Removed old directory: ${entry.name}/`);
+        }
+      } catch {
+        // ディレクトリ読み取りエラーはスキップ
+      }
+    }
+    
+    // 古いCSVファイルを削除
+    for (const entry of entries) {
+      if (entry.isFile() && 
+          entry.name.endsWith(` ${dbIdShort}.csv`) && 
+          entry.name !== `${sanitizeFilename(title)} ${dbIdShort}.csv`) {
+        const oldFilePath = path.join(outputPath, entry.name);
+        await fs.unlink(oldFilePath);
+        console.log(`  🗑️  Removed old CSV: ${entry.name}`);
+      }
+    }
+  } catch {
+    // エラーはスキップ
+  }
 
   // CSVエクスポート
   await exportDatabaseToCsv(records, title, dbIdShort, outputPath);
