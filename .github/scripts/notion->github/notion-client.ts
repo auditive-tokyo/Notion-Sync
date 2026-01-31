@@ -234,7 +234,7 @@ function formatChildLink(
   blockId: string,
   parentTitle: string | undefined,
   icon: string,
-  extension: string
+  extension: string,
 ): string {
   const childId = blockId.replace(/-/g, "");
   if (parentTitle && childId) {
@@ -251,7 +251,7 @@ function formatChildLink(
  */
 async function processImageBlock(
   block: BlockObjectResponse & { type: "image" },
-  outputDir?: string
+  outputDir?: string,
 ): Promise<string> {
   const imageData = block.image;
   let imageUrl: string;
@@ -325,11 +325,26 @@ async function blockToMarkdown(
       return `> ${emoji} ${richTextToMarkdown(block.callout.rich_text)}\n`;
     }
     case "child_page":
-      return formatChildLink(block.child_page.title || "Untitled", block.id, parentTitle, "📄", "md");
+      return formatChildLink(
+        block.child_page.title || "Untitled",
+        block.id,
+        parentTitle,
+        "📄",
+        "md",
+      );
     case "child_database":
-      return formatChildLink(block.child_database.title || "Untitled", block.id, parentTitle, "🗄️", "csv");
+      return formatChildLink(
+        block.child_database.title || "Untitled",
+        block.id,
+        parentTitle,
+        "🗄️",
+        "csv",
+      );
     case "image":
-      return processImageBlock(block as BlockObjectResponse & { type: "image" }, outputDir);
+      return processImageBlock(
+        block as BlockObjectResponse & { type: "image" },
+        outputDir,
+      );
     case "bookmark":
       return `🔗 ${block.bookmark.url || ""}\n`;
     case "table":
@@ -455,14 +470,29 @@ export async function processPage(
   const title = getPageTitle(page);
   const pageIdShort = pageId.replace(/-/g, "");
 
-  // 同じIDを持つ古いファイルを削除（タイトル変更に対応）
+  // 同じIDを持つ古いファイル・フォルダを削除（タイトル変更に対応）
   try {
-    const files = await fs.readdir(outputPath);
-    for (const file of files) {
-      if (file.endsWith(` ${pageIdShort}.md`) && file !== `${sanitizeFilename(title)} ${pageIdShort}.md`) {
-        const oldFilePath = path.join(outputPath, file);
+    const entries = await fs.readdir(outputPath, { withFileTypes: true });
+    for (const entry of entries) {
+      // 古いファイルを削除
+      if (
+        entry.isFile() &&
+        entry.name.endsWith(` ${pageIdShort}.md`) &&
+        entry.name !== `${sanitizeFilename(title)} ${pageIdShort}.md`
+      ) {
+        const oldFilePath = path.join(outputPath, entry.name);
         await fs.unlink(oldFilePath);
-        console.log(`  🗑️  Removed old file: ${file}`);
+        console.log(`  🗑️  Removed old file: ${entry.name}`);
+      }
+      // 古いフォルダを削除（IDで判定）
+      if (
+        entry.isDirectory() &&
+        entry.name.endsWith(` ${pageIdShort}`) &&
+        entry.name !== `${sanitizeFilename(title)} ${pageIdShort}`
+      ) {
+        const oldDirPath = path.join(outputPath, entry.name);
+        await fs.rm(oldDirPath, { recursive: true });
+        console.log(`  🗑️  Removed old directory: ${entry.name}/`);
       }
     }
   } catch {
@@ -498,8 +528,11 @@ export async function processPage(
   );
 
   if (childPages.length > 0) {
-    // 子ページ用のフォルダを作成
-    const childDir = path.join(outputPath, sanitizeFilename(title));
+    // 子ページ用のフォルダを作成（ID付き）
+    const childDir = path.join(
+      outputPath,
+      `${sanitizeFilename(title)} ${pageIdShort}`,
+    );
     await fs.mkdir(childDir, { recursive: true });
 
     for (const child of childPages) {
@@ -573,52 +606,34 @@ export async function processDatabase(
     cursor = response.next_cursor ?? undefined;
   }
 
-  // フォルダ作成
-  const dbDir = path.join(outputPath, sanitizeFilename(title));
+  // フォルダ作成（ID付き）
+  const dbDir = path.join(
+    outputPath,
+    `${sanitizeFilename(title)} ${dbIdShort}`,
+  );
   await fs.mkdir(dbDir, { recursive: true });
 
-  // 同じDBの古いディレクトリ・CSVを削除（タイトル変更に対応）
-  // レコードIDを使って、このDBに属するディレクトリを特定する
-  const recordIds = new Set(records.map(r => r.id.replace(/-/g, "")));
-  
+  // 同じIDを持つ古いディレクトリ・CSVを削除（タイトル変更に対応）
   try {
     const entries = await fs.readdir(outputPath, { withFileTypes: true });
-    
+
     for (const entry of entries) {
-      // ディレクトリのみ対象（現在のタイトルと同じなら新しいのでスキップ）
-      if (!entry.isDirectory() || entry.name === sanitizeFilename(title)) {
-        continue;
+      // 古いディレクトリを削除（IDで判定）
+      if (
+        entry.isDirectory() &&
+        entry.name.endsWith(` ${dbIdShort}`) &&
+        entry.name !== `${sanitizeFilename(title)} ${dbIdShort}`
+      ) {
+        const oldDirPath = path.join(outputPath, entry.name);
+        await fs.rm(oldDirPath, { recursive: true });
+        console.log(`  🗑️  Removed old directory: ${entry.name}/`);
       }
-      
-      const dirPath = path.join(outputPath, entry.name);
-      
-      // ディレクトリ内のファイルを確認
-      try {
-        const dirFiles = await fs.readdir(dirPath);
-        
-        // このディレクトリ内のmdファイルが現在のDBレコードIDを持つか確認
-        const belongsToThisDb = dirFiles.some(file => {
-          if (!file.endsWith(".md")) return false;
-          // ファイル名からIDを抽出（末尾32文字）
-          const match = file.match(/([a-f0-9]{32})\.md$/);
-          return match && recordIds.has(match[1]);
-        });
-        
-        if (belongsToThisDb) {
-          // このDBに属する古いディレクトリなので削除
-          await fs.rm(dirPath, { recursive: true });
-          console.log(`  🗑️  Removed old directory: ${entry.name}/`);
-        }
-      } catch {
-        // ディレクトリ読み取りエラーはスキップ
-      }
-    }
-    
-    // 古いCSVファイルを削除
-    for (const entry of entries) {
-      if (entry.isFile() && 
-          entry.name.endsWith(` ${dbIdShort}.csv`) && 
-          entry.name !== `${sanitizeFilename(title)} ${dbIdShort}.csv`) {
+      // 古いCSVファイルを削除
+      if (
+        entry.isFile() &&
+        entry.name.endsWith(` ${dbIdShort}.csv`) &&
+        entry.name !== `${sanitizeFilename(title)} ${dbIdShort}.csv`
+      ) {
         const oldFilePath = path.join(outputPath, entry.name);
         await fs.unlink(oldFilePath);
         console.log(`  🗑️  Removed old CSV: ${entry.name}`);
