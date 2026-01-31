@@ -24,6 +24,25 @@ import {
 const notion = new Client({ auth: process.env.NOTION_API_KEY });
 
 // ============================================================
+// 処理済みID追跡（削除検出用）
+// ============================================================
+const processedIds = new Set<string>();
+
+/**
+ * 処理済みIDを取得
+ */
+export function getProcessedIds(): Set<string> {
+  return new Set(processedIds);
+}
+
+/**
+ * 処理済みIDをクリア
+ */
+export function clearProcessedIds(): void {
+  processedIds.clear();
+}
+
+// ============================================================
 // 設定
 // ============================================================
 const DOWNLOAD_IMAGES =
@@ -470,6 +489,9 @@ export async function processPage(
   const title = getPageTitle(page);
   const pageIdShort = pageId.replace(/-/g, "");
 
+  // 処理済みIDを記録（削除検出用）
+  processedIds.add(pageIdShort);
+
   // 同じIDを持つ古いファイル・フォルダを削除（タイトル変更に対応）
   try {
     const entries = await fs.readdir(outputPath, { withFileTypes: true });
@@ -573,6 +595,9 @@ export async function processDatabase(
   const title =
     db.title && db.title.length > 0 ? db.title[0].plain_text : "Untitled";
   const dbIdShort = databaseId.replace(/-/g, "");
+
+  // 処理済みIDを記録（削除検出用）
+  processedIds.add(dbIdShort);
 
   const indent = "  ".repeat(depth);
   console.log(`${indent}🗄️ ${title}`);
