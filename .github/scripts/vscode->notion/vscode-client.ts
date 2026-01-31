@@ -11,8 +11,6 @@ import * as path from "node:path";
 // ============================================================
 const PAGE_ID_PATTERN = /\s([a-f0-9]{32})\.md$/;
 const HEADING_PATTERN = /^#+ /;
-const MAX_RETRIES = 3;
-const RETRY_DELAY_MS = 1000;
 
 // 子ページ/データベースへのリンク行を検出するパターン
 const CHILD_LINK_PATTERN = /^(?:📄|🗄️)\s*\[.+\]\(.+\)$/u;
@@ -179,38 +177,7 @@ async function getAllBlocks(pageId: string): Promise<
 }
 
 /**
- * リトライ機能付きでブロックを追加
- */
-async function appendBlocksWithRetry(
-  pageId: string,
-  blocks: BlockObjectRequest[],
-): Promise<void> {
-  let lastError: Error | null = null;
-
-  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
-    try {
-      for (const block of blocks) {
-        await notion.blocks.children.append({
-          block_id: pageId,
-          children: [block],
-        });
-      }
-      return; // 成功
-    } catch (error) {
-      lastError = error instanceof Error ? error : new Error(String(error));
-      if (attempt < MAX_RETRIES - 1) {
-        await new Promise((resolve) =>
-          setTimeout(resolve, RETRY_DELAY_MS * (attempt + 1)),
-        );
-      }
-    }
-  }
-
-  throw lastError;
-}
-
-/**
- * ページの内容を更新（テキストブロックのみ削除して再作成）
+ * ページの内容を更新（順序を保持）
  */
 async function updatePageContent(
   pageId: string,
@@ -220,17 +187,47 @@ async function updatePageContent(
   const existingBlocks = await getAllBlocks(pageId);
 
   // テキストブロックのみ削除（child_page/child_databaseは保持）
-  const textBlocks = existingBlocks.filter((b) => !b.isChild);
-  for (const block of textBlocks) {
-    try {
-      await notion.blocks.delete({ block_id: block.id });
-    } catch {
-      // 削除失敗は無視
+  for (const block of existingBlocks) {
+    if (!block.isChild) {
+      try {
+        await notion.blocks.delete({ block_id: block.id });
+      } catch {
+        // 削除失敗は無視
+      }
     }
   }
 
   // 新しいブロックを追加
-  await appendBlocksWithRetry(pageId, blocks);
+  // 子ブロックがない場合は単純に追加
+  const childBlocks = existingBlocks.filter((b) => b.isChild);
+  if (childBlocks.length === 0) {
+    // 一括で追加（最大100ブロック）
+    if (blocks.length <= 100) {
+      await notion.blocks.children.append({
+        block_id: pageId,
+        children: blocks,
+      });
+    } else {
+      // 100ブロックずつ分割
+      for (let i = 0; i < blocks.length; i += 100) {
+        const chunk = blocks.slice(i, i + 100);
+        await notion.blocks.children.append({
+          block_id: pageId,
+          children: chunk,
+        });
+      }
+    }
+    return;
+  }
+
+  // 子ブロックがある場合は、先頭に追加（afterパラメータなし）
+  // 逆順で追加することで正しい順序になる
+  for (let i = blocks.length - 1; i >= 0; i--) {
+    await notion.blocks.children.append({
+      block_id: pageId,
+      children: [blocks[i]],
+    });
+  }
 }
 
 // ============================================================
