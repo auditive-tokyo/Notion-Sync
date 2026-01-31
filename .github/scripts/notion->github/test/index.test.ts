@@ -342,7 +342,22 @@ describe("index.ts - Entry Point Integration Test", () => {
 // ============================================================
 
 describe("index.ts - Error Cases", () => {
+  const originalCwd = process.cwd();
   const originalEnv = { ...process.env };
+  let tempDir: string;
+
+  beforeAll(async () => {
+    // テスト用の一時ディレクトリを作成
+    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "notion-sync-error-"));
+    process.chdir(tempDir);
+  });
+
+  afterAll(async () => {
+    // 元のディレクトリに戻る
+    process.chdir(originalCwd);
+    // 一時ディレクトリを削除
+    await fs.rm(tempDir, { recursive: true, force: true });
+  });
 
   afterEach(() => {
     // 環境変数を元に戻す

@@ -1354,7 +1354,8 @@ describe("Notion Client - Integration Tests (processPage/processDatabase)", () =
 
       // ディレクトリは作成されるがCSVは空なので作成されない
       const files = await fs.readdir(tempDir);
-      const dbDir = files.find((f) => f === "空のDB");
+      const dbIdShort = databaseId.replace(/-/g, "");
+      const dbDir = files.find((f) => f === `空のDB ${dbIdShort}`);
       expect(dbDir).toBeDefined();
     });
 
@@ -2220,9 +2221,10 @@ describe("Notion Client - Additional Branch Coverage Tests", () => {
 
       await processDatabase(databaseId, tempDir);
 
-      // "Untitled" フォルダが作成される
+      // "Untitled {ID}" フォルダが作成される
       const files = await fs.readdir(tempDir);
-      expect(files).toContain("Untitled");
+      const dbIdShort = databaseId.replace(/-/g, "");
+      expect(files).toContain(`Untitled ${dbIdShort}`);
     });
   });
 
