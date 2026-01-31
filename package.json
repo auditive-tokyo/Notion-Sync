@@ -5,7 +5,7 @@
     "type": "module",
     "scripts": {
         "pull": "tsx '.github/scripts/notion->vscode/index.ts'",
-        "push": "tsx '.github/scripts/github->notion/index.ts'",
+        "push": "tsx '.github/scripts/vscode->notion/index.ts'",
         "typecheck": "tsc --noEmit --project .github/tsconfig.json",
         "lint": "eslint .github/scripts --config .github/eslint.config.js",
         "test": "vitest --config .github/vitest.config.ts",
